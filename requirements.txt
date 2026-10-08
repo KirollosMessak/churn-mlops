@@ -8,6 +8,8 @@ scipy==1.13.1
 xgboost==3.0.2; sys_platform != "linux"
 xgboost-cpu==3.0.2; sys_platform == "linux"
 mlflow==3.3.1
+# MLflow's database layer: pinned because newer SQLAlchemy releases break mlflow 3.3.1's imports
+sqlalchemy==2.0.34
 fastapi==0.116.1
 uvicorn==0.34.0
 pydantic==2.13.4
