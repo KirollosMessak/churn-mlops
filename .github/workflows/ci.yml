@@ -40,7 +40,14 @@ jobs:
       # Fails the workflow (exit code 1) if the new model doesn't pass the quality gate,
       # so a worse model can never reach the Docker image.
       - name: Train, evaluate and promote
-        run: python -m churn.train
+        run: |
+          set -o pipefail
+          python -m churn.train 2>&1 | tee train.log
+      - name: Surface the training error
+        if: failure()
+        run: |
+          # Show the end of the log as an annotation on the run page
+          echo "::error title=Training failed::$(tail -n 25 train.log | sed ':a;N;$!ba;s/%/%25/g;s/\r//g;s/\n/%0A/g')"
       - uses: actions/upload-artifact@v4
         with:
           name: champion-model
