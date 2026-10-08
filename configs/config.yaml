@@ -1,0 +1,55 @@
+# Single source of truth for the pipeline. Change values here, not in code.
+data:
+  raw_path: data/raw/telco_churn.csv
+  target: Churn
+  id_column: customerID
+  test_size: 0.2       # held out for the final report and the quality gate
+  val_size: 0.2        # of the remaining data, used for model selection and threshold tuning
+  random_state: 42
+
+features:
+  numeric: [tenure, MonthlyCharges, TotalCharges]
+  categorical:
+    [gender, SeniorCitizen, Partner, Dependents, PhoneService, MultipleLines, InternetService,
+     OnlineSecurity, OnlineBackup, DeviceProtection, TechSupport, StreamingTV, StreamingMovies,
+     Contract, PaperlessBilling, PaymentMethod]
+
+models:
+  logistic_regression:
+    C: 1.0
+    max_iter: 1000
+  random_forest:
+    n_estimators: 300
+    max_depth: 10
+    min_samples_leaf: 5
+  xgboost:
+    n_estimators: 400
+    max_depth: 4
+    learning_rate: 0.03
+    subsample: 0.9
+    colsample_bytree: 0.8
+
+# Retention campaign economics used to pick the decision threshold
+business:
+  offer_cost: 50            # cost of one retention offer (discount, call, gift)
+  saved_customer_value: 500 # value kept when a would-be churner stays
+  offer_success_rate: 0.3   # share of contacted churners who stay because of the offer
+
+quality_gate:
+  min_roc_auc: 0.80                 # absolute floor on the test set
+  max_regression_vs_champion: 0.01  # new model may not be worse than production by more than this
+
+mlflow:
+  tracking_uri: sqlite:///mlflow.db
+  experiment: churn-prediction
+  registered_model: churn-model
+
+paths:
+  champion_dir: models/champion
+  prediction_log: logs/predictions.jsonl
+  reports_dir: reports
+
+monitoring:
+  psi_threshold: 0.2            # PSI above this = significant drift for a feature
+  ks_pvalue: 0.01               # KS test p-value below this = numeric feature drifted
+  drift_share_to_retrain: 0.25  # retrain if at least this share of features drifted

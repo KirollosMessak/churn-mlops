@@ -1,0 +1,23 @@
+# Local stack: prediction API + MLflow tracking server with its UI.
+#   docker compose up --build
+#   API docs:  http://localhost:8000/docs     MLflow UI:  http://localhost:5000
+# To log training runs to this MLflow server:
+#   MLFLOW_TRACKING_URI=http://localhost:5000 python -m churn.train
+services:
+  api:
+    build: .
+    ports: ["8000:8000"]
+    volumes:
+      - ./logs:/app/logs   # prediction log on the host, for drift monitoring
+    restart: unless-stopped
+
+  mlflow:
+    image: ghcr.io/mlflow/mlflow:v3.3.1
+    command: >
+      mlflow server --host 0.0.0.0 --port 5000
+      --backend-store-uri sqlite:////mlflow/mlflow.db
+      --artifacts-destination /mlflow/artifacts
+    ports: ["5000:5000"]
+    volumes:
+      - ./mlflow-data:/mlflow
+    restart: unless-stopped

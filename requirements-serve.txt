@@ -1,0 +1,10 @@
+# Minimal runtime for the Docker image: only what the API needs to load the model and serve.
+numpy==1.26.4
+pandas==2.2.2
+scikit-learn==1.5.1
+xgboost-cpu==3.0.2
+fastapi==0.116.1
+uvicorn==0.34.0
+pydantic==2.13.4
+joblib==1.4.2
+pyyaml==6.0.1

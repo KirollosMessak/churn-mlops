@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+__pycache__
+*.pyc
+data/
+logs/
+mlruns/
+mlflow.db
+mlflow-data/
+reports/
+docs/
+tests/
+models/champion/reference.csv

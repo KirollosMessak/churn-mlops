@@ -1,0 +1,93 @@
+name: CI/CD
+
+# Every push and pull request: lint -> test -> train with quality gate -> build and smoke-test the
+# Docker image. On main, the image is also published to GitHub Container Registry.
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+env:
+  PYTHONPATH: src
+
+jobs:
+  test:
+    name: Lint and test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - run: ruff check .
+      - run: ruff format --check .
+      - run: pytest -q
+
+  train:
+    name: Train and quality gate
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      # Fails the workflow (exit code 1) if the new model doesn't pass the quality gate,
+      # so a worse model can never reach the Docker image.
+      - name: Train, evaluate and promote
+        run: python -m churn.train
+      - uses: actions/upload-artifact@v4
+        with:
+          name: champion-model
+          path: models/champion/
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: training-reports
+          path: reports/
+
+  docker:
+    name: Build, smoke-test and publish image
+    needs: train
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Use the model trained and approved in this run
+        uses: actions/download-artifact@v4
+        with:
+          name: champion-model
+          path: models/champion/
+      - name: Build image
+        run: docker build -t churn-api:ci .
+      - name: Smoke test the running container
+        run: |
+          docker run -d --name api -p 8000:8000 churn-api:ci
+          for i in $(seq 1 30); do curl -sf localhost:8000/health && break; sleep 1; done
+          curl -sf localhost:8000/health
+          curl -sf -X POST localhost:8000/predict -H "Content-Type: application/json" -d '{
+            "gender": "Female", "SeniorCitizen": "0", "Partner": "No", "Dependents": "No", "tenure": 2,
+            "PhoneService": "Yes", "MultipleLines": "No", "InternetService": "Fiber optic",
+            "OnlineSecurity": "No", "OnlineBackup": "No", "DeviceProtection": "No", "TechSupport": "No",
+            "StreamingTV": "Yes", "StreamingMovies": "Yes", "Contract": "Month-to-month",
+            "PaperlessBilling": "Yes", "PaymentMethod": "Electronic check",
+            "MonthlyCharges": 95.5, "TotalCharges": 191.0}' | tee prediction.json
+          grep -q churn_probability prediction.json
+          docker logs api
+      - name: Publish to GitHub Container Registry
+        if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+        run: |
+          IMAGE=ghcr.io/${GITHUB_REPOSITORY,,}
+          echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
+          docker tag churn-api:ci $IMAGE:latest
+          docker tag churn-api:ci $IMAGE:${GITHUB_SHA::7}
+          docker push $IMAGE:latest
+          docker push $IMAGE:${GITHUB_SHA::7}
+          echo "Published \`$IMAGE:latest\`" >> $GITHUB_STEP_SUMMARY

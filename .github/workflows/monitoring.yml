@@ -1,0 +1,49 @@
+name: Weekly drift check
+
+# Scheduled monitoring job. In a real deployment this reads the production prediction log;
+# here it replays simulated traffic (normal or drifted) through the API to demonstrate the flow.
+on:
+  schedule:
+    - cron: "0 6 * * 1" # Mondays 06:00 UTC
+  workflow_dispatch:
+    inputs:
+      scenario:
+        description: "Traffic to simulate"
+        type: choice
+        options: [drift, normal]
+        default: drift
+
+env:
+  PYTHONPATH: src
+
+jobs:
+  drift:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+      - run: pip install -r requirements.txt
+      - name: Simulate a week of production traffic
+        run: python -m churn.monitoring.simulate --scenario ${{ inputs.scenario || 'drift' }} --n 500
+      - name: Check for drift
+        id: drift
+        run: python -m churn.monitoring.drift --window 500 --fail-on-drift
+        continue-on-error: true
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: drift-report
+          path: reports/
+      - name: Summary
+        if: always()
+        run: |
+          if [ "${{ steps.drift.outcome }}" = "failure" ]; then
+            echo "## ⚠️ Drift detected: retraining recommended" >> $GITHUB_STEP_SUMMARY
+            echo "Run the CI/CD workflow to retrain; the quality gate decides whether the new model ships." >> $GITHUB_STEP_SUMMARY
+          else
+            echo "## ✅ No significant drift" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "Download the **drift-report** artifact for the full HTML report." >> $GITHUB_STEP_SUMMARY

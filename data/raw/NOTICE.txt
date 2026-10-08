@@ -1,0 +1,3 @@
+Telco-Customer-Churn.csv (saved here as telco_churn.csv)
+Source: https://github.com/IBM/telco-customer-churn-on-icp4d
+License: Apache License 2.0, Copyright IBM

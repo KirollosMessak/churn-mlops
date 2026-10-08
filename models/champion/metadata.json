@@ -1,0 +1,39 @@
+{
+  "model_name": "churn-model",
+  "model_version": 3,
+  "model_type": "xgboost",
+  "threshold": 0.38,
+  "trained_at": "2026-10-08T18:30:30+00:00",
+  "features": [
+    "tenure",
+    "MonthlyCharges",
+    "TotalCharges",
+    "gender",
+    "SeniorCitizen",
+    "Partner",
+    "Dependents",
+    "PhoneService",
+    "MultipleLines",
+    "InternetService",
+    "OnlineSecurity",
+    "OnlineBackup",
+    "DeviceProtection",
+    "TechSupport",
+    "StreamingTV",
+    "StreamingMovies",
+    "Contract",
+    "PaperlessBilling",
+    "PaymentMethod"
+  ],
+  "test_metrics": {
+    "roc_auc": 0.8434,
+    "pr_auc": 0.6563,
+    "precision": 0.5789,
+    "recall": 0.6765,
+    "f1": 0.6239,
+    "profit": 16100.0,
+    "profit_contact_everyone": -14350.0,
+    "profit_contact_nobody": 0.0
+  },
+  "mlflow_run_id": "42fef88af9b7468ea3c651470d96d72a"
+}
